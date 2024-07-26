@@ -8,11 +8,17 @@ export function App() {
   const [isError, setIsError] = React.useState(false);
   const [isLoaded, setLoaded] = React.useState(false);
   const [viewLibrary, setViewLibrary] = React.useState(false);
+
+  const [mediaLibrary, setLibrary] = React.useState<string[]>(null);
+  const [mimeContainer, setMIME] = React.useState<string>("webm");
+
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
-  const streamRef = React.useRef<MediaStream | null>(null);
+  const streamRef = React.useRef<HTMLVideoElement>(null);
+  const chunksRef = React.useRef<Blob[]>([]);
 
   const handlePreferredFormat = (value: string) => {
-    console.log("Selected:", value);
+    console.log(value);
+    setMIME(value);
   };
 
   const startWebcam = async () => {
@@ -21,27 +27,56 @@ export function App() {
         video: true,
         audio: true,
       });
-
-      const chunks: BlobPart[] = [];
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorder.ondataavailable = (event) => {
-        chunks.push(event.data);
-      };
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: "video/webm" });
-        const url = URL.createObjectURL(blob);
-        // TODO: send url to backend
-      };
+      if (streamRef.current) {
+        streamRef.current.srcObject = stream;
+      }
       setLoaded(true);
-      streamRef.current = stream;
-      mediaRecorderRef.current = mediaRecorder;
     } catch (error) {
-      console.error("Error accessing webcam: ", error);
+      console.error("Error accessing webcam:", error);
       setIsError(true);
     }
   };
 
+  const handleStartStopRecording = () => {
+    if (isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    } else {
+      const stream = streamRef.current.srcObject as MediaStream;
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, {
+          type: `video/${mimeContainer}`,
+        });
+        sendVideoToElectron(blob);
+        chunksRef.current = [];
+      };
+
+      mediaRecorder.start();
+      mediaRecorderRef.current = mediaRecorder;
+      setIsRecording(true);
+    }
+  };
+
+  const sendVideoToElectron = (videoBlob: Blob) => {
+    videoBlob.arrayBuffer().then((buffer) => {
+      window.electron.saveVideo(buffer, mimeContainer);
+    });
+  };
+
+  const getLibrary = async () => {
+    const videos = await window.electron.getSavedVideos();
+    setLibrary(videos);
+  };
+
   React.useEffect(() => {
+    if (!mediaLibrary) getLibrary();
     startWebcam();
   }, []);
 
@@ -52,12 +87,9 @@ export function App() {
         <video
           autoPlay
           muted
+          playsInline
           style={{ width: "100%" }}
-          ref={(videoElement) => {
-            if (videoElement && streamRef.current) {
-              videoElement.srcObject = streamRef.current;
-            }
-          }}
+          ref={streamRef}
         />
       )}
       {isError && (
@@ -76,7 +108,7 @@ export function App() {
           <div>
             <RecordButton
               style={isRecording ? { backgroundColor: "red" } : {}}
-              onClick={() => setIsRecording((prevRecording) => !prevRecording)}
+              onClick={handleStartStopRecording}
             >
               Rec
             </RecordButton>
