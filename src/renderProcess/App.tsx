@@ -3,25 +3,36 @@ import "./App.css";
 import { styled } from "styled-components";
 import { Dropdown } from "./components/Dropdown";
 import { VideoMetadata, VideoTypes } from "../types/video";
+import { VideoPlayer } from "./components/VideoPlayer";
+import {
+  getVideoMetadataFromElectron,
+  getVideoURLFromElectron,
+  sendVideoToElectron,
+} from "./services/electron";
 
 export function App() {
+  // state variables
   const [isRecording, setIsRecording] = React.useState(false);
   const [isError, setIsError] = React.useState(false);
   const [isLoaded, setLoaded] = React.useState(false);
-  const [viewLibrary, setViewLibrary] = React.useState(false);
   const [isPlayback, setPlayback] = React.useState(false);
-  const [selectedVideo, setSelection] = React.useState(false);
+  const [viewLibrary, setViewLibrary] = React.useState(false);
 
-  const [mediaLibrary, setLibrary] = React.useState<VideoMetadata[]>(null);
+  // store variables
+  const [mediaLibrary, setLibrary] = React.useState<VideoMetadata[] | null>(
+    null
+  );
   const [mimeContainer, setMIME] = React.useState<VideoTypes>("webm");
+  const [videoData, setVideoData] = React.useState<string | null>(null);
+  const [selectedMetadata, setSelection] = React.useState<VideoMetadata | null>(
+    null
+  );
 
+  // handy refs
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
-  const streamRef = React.useRef<HTMLVideoElement>(null);
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const streamRef = React.useRef<MediaStream | null>(null);
   const chunksRef = React.useRef<Blob[]>([]);
-
-  const handlePreferredFormat = (value: VideoTypes) => {
-    setMIME(value);
-  };
 
   const startWebcam = async () => {
     try {
@@ -29,9 +40,8 @@ export function App() {
         video: true,
         audio: true,
       });
-      if (streamRef.current) {
-        streamRef.current.srcObject = stream;
-      }
+      if (videoRef.current) videoRef.current.srcObject = stream;
+      if (streamRef.current) streamRef.current = stream;
       setLoaded(true);
     } catch (error) {
       console.error("Error accessing webcam:", error);
@@ -39,41 +49,71 @@ export function App() {
     }
   };
 
-  const handleStartStopRecording = () => {
-    if (isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    } else {
-      const stream = streamRef.current.srcObject as MediaStream;
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, {
-          type: `video/${mimeContainer}`,
-        });
-        sendVideoToElectron(blob);
-        chunksRef.current = [];
-      };
-
-      mediaRecorder.start();
-      mediaRecorderRef.current = mediaRecorder;
-      setIsRecording(true);
+  const stopWebcam = async () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      if (videoRef.current) videoRef.current.srcObject = null;
+      setLoaded(false);
     }
   };
 
-  const sendVideoToElectron = (videoBlob: Blob) => {
-    videoBlob.arrayBuffer().then((buffer) => {
-      window.electron.saveVideo(buffer, mimeContainer);
-    });
+  const handleToggleRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    } else {
+      if (streamRef.current) {
+        const stream = streamRef.current;
+        const mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            chunksRef.current.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(chunksRef.current, {
+            type: `video/${mimeContainer}`,
+          });
+          sendVideoToElectron(blob, mimeContainer);
+          chunksRef.current = [];
+        };
+
+        mediaRecorder.start();
+        mediaRecorderRef.current = mediaRecorder;
+        setIsRecording(true);
+      }
+    }
+  };
+
+  const handlePreferredFormat = (value: VideoTypes) => {
+    setMIME(value);
+  };
+
+  const handleViewLibraryItem = (event: React.MouseEvent<HTMLDivElement>) => {
+    const selectedIndex = parseInt(
+      (event.target as HTMLElement).getAttribute("data-libindex") ?? "-1"
+    );
+    if (mediaLibrary && selectedIndex >= 0) {
+      const selectedVideo = mediaLibrary[selectedIndex];
+      setSelection(selectedVideo);
+      updateVideoSource(selectedVideo);
+    }
+  };
+
+  const updateVideoSource = async (selectedMetadata: VideoMetadata) => {
+    const newSrc = await getVideoURLFromElectron(
+      selectedMetadata.name,
+      selectedMetadata.type
+    );
+    setVideoData(newSrc);
+    setPlayback(true);
   };
 
   const getLibrary = async () => {
-    const videos = await window.electron.getLibraryMetadata();
+    const videos = await getVideoMetadataFromElectron();
     setLibrary(videos);
   };
 
@@ -82,28 +122,53 @@ export function App() {
     startWebcam();
   }, []);
 
-  // TODO: set up ask camera permission function using navigator.mediaDevices to add into ErrorView as button
+  React.useEffect(() => {
+    if (isPlayback) {
+      stopWebcam();
+    } else {
+      startWebcam();
+    }
+  }, [isPlayback]);
+
   return (
     <AppWrapper>
-      {isLoaded && (
+      {isLoaded && !isPlayback && (
         <video
           autoPlay
           muted
           playsInline
           style={{ width: "100%" }}
-          ref={streamRef}
+          ref={videoRef}
+        />
+      )}
+      {isPlayback && videoData && selectedMetadata && (
+        <VideoPlayer
+          url={videoData}
+          videoType={selectedMetadata.type}
+          exitPlayback={() => {
+            setPlayback(false);
+            setVideoData(null);
+            startWebcam();
+          }}
         />
       )}
       {isError && (
         <ErrorView>
-          <p>Cannot Find Webcam</p>
+          <p>Cannot connect to webcam. Are webcam permissions allowed?</p>
+          <button onClick={startWebcam}>Try connecting again</button>
         </ErrorView>
       )}
       <ControlPanel>
-        <LibraryView $isVisible={viewLibrary}>
+        <LibraryView $isVisible={viewLibrary} onClick={handleViewLibraryItem}>
           {mediaLibrary &&
-            mediaLibrary.map((item) => (
-              <img height="100%" width="auto" src={item.thumbnail} />
+            mediaLibrary.map((item, index) => (
+              <img
+                key={`video_thumbnail_${item.name}`}
+                height="100%"
+                width="auto"
+                src={item.thumbnail}
+                data-libindex={index}
+              />
             ))}
         </LibraryView>
         <FlexRowContainer>
@@ -115,7 +180,7 @@ export function App() {
           <div>
             <RecordButton
               style={isRecording ? { backgroundColor: "red" } : {}}
-              onClick={handleStartStopRecording}
+              onClick={handleToggleRecording}
             >
               Rec
             </RecordButton>
@@ -131,7 +196,6 @@ export function App() {
     </AppWrapper>
   );
 }
-
 const LibraryView = styled.div<{ $isVisible: boolean }>`
   position: absolute;
   bottom: 100%;
@@ -142,7 +206,7 @@ const LibraryView = styled.div<{ $isVisible: boolean }>`
   gap: 4px;
   padding: 8px;
   overflow: auto;
-  transform: ${({ $isVisible }) => ($isVisible ? "scaleY(0)" : "scaleY(1)")};
+  transform: ${({ $isVisible }) => ($isVisible ? "scaleY(1)" : "scaleY(0)")};
   transform-origin: bottom;
   transition: transform 0.3s ease-out;
 `;

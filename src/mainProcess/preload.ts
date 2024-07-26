@@ -2,11 +2,13 @@
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 
 import { contextBridge, ipcRenderer } from "electron";
-import { IElectron } from "../types/electronAPI";
+import { ElectronAPI } from "../types/electronAPI";
 
-contextBridge.exposeInMainWorld("electron", {
+const electronAPI: ElectronAPI = {
   saveVideo: (videoBlob: ArrayBuffer, fileType: string) =>
     ipcRenderer.send("save-video", videoBlob, fileType),
   getLibraryMetadata: () => ipcRenderer.invoke("get-library-metadata"),
-  getVideo: () => ipcRenderer.invoke("get-video"),
-} as IElectron);
+  getVideo: (filePath: string) => ipcRenderer.invoke("get-video", filePath),
+};
+
+contextBridge.exposeInMainWorld("electron", electronAPI);
