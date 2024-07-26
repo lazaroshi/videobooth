@@ -1,4 +1,7 @@
+import { VideoMetadata } from "./video";
+
 export interface IElectron {
   saveVideo: (videoBlob: ArrayBuffer, fileType: string) => void;
-  getSavedVideos: () => Promise<string[]>;
+  getLibraryMetadata: () => Promise<VideoMetadata[]>;
+  getVideo: (path: string) => Promise<Uint8Array>;
 }

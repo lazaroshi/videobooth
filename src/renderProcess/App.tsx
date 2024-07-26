@@ -2,22 +2,24 @@ import React from "react";
 import "./App.css";
 import { styled } from "styled-components";
 import { Dropdown } from "./components/Dropdown";
+import { VideoMetadata, VideoTypes } from "../types/video";
 
 export function App() {
   const [isRecording, setIsRecording] = React.useState(false);
   const [isError, setIsError] = React.useState(false);
   const [isLoaded, setLoaded] = React.useState(false);
   const [viewLibrary, setViewLibrary] = React.useState(false);
+  const [isPlayback, setPlayback] = React.useState(false);
+  const [selectedVideo, setSelection] = React.useState(false);
 
-  const [mediaLibrary, setLibrary] = React.useState<string[]>(null);
-  const [mimeContainer, setMIME] = React.useState<string>("webm");
+  const [mediaLibrary, setLibrary] = React.useState<VideoMetadata[]>(null);
+  const [mimeContainer, setMIME] = React.useState<VideoTypes>("webm");
 
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const streamRef = React.useRef<HTMLVideoElement>(null);
   const chunksRef = React.useRef<Blob[]>([]);
 
-  const handlePreferredFormat = (value: string) => {
-    console.log(value);
+  const handlePreferredFormat = (value: VideoTypes) => {
     setMIME(value);
   };
 
@@ -71,7 +73,7 @@ export function App() {
   };
 
   const getLibrary = async () => {
-    const videos = await window.electron.getSavedVideos();
+    const videos = await window.electron.getLibraryMetadata();
     setLibrary(videos);
   };
 
@@ -98,7 +100,12 @@ export function App() {
         </ErrorView>
       )}
       <ControlPanel>
-        {viewLibrary && <LibraryView />}
+        <LibraryView $isVisible={viewLibrary}>
+          {mediaLibrary &&
+            mediaLibrary.map((item) => (
+              <img height="100%" width="auto" src={item.thumbnail} />
+            ))}
+        </LibraryView>
         <FlexRowContainer>
           <div>
             <button onClick={() => setViewLibrary((prevView) => !prevView)}>
@@ -125,10 +132,19 @@ export function App() {
   );
 }
 
-const LibraryView = styled.div`
-  height: 50px;
+const LibraryView = styled.div<{ $isVisible: boolean }>`
+  position: absolute;
+  bottom: 100%;
+  height: 80px;
   width: 100%;
-  background-color: lightgray;
+  background-color: darkgray;
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  overflow: auto;
+  transform: ${({ $isVisible }) => ($isVisible ? "scaleY(0)" : "scaleY(1)")};
+  transform-origin: bottom;
+  transition: transform 0.3s ease-out;
 `;
 
 const RecordButton = styled.button`

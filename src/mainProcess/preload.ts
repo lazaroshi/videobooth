@@ -7,5 +7,6 @@ import { IElectron } from "../types/electronAPI";
 contextBridge.exposeInMainWorld("electron", {
   saveVideo: (videoBlob: ArrayBuffer, fileType: string) =>
     ipcRenderer.send("save-video", videoBlob, fileType),
-  getSavedVideos: () => ipcRenderer.invoke("get-saved-videos"),
+  getLibraryMetadata: () => ipcRenderer.invoke("get-library-metadata"),
+  getVideo: () => ipcRenderer.invoke("get-video"),
 } as IElectron);
