@@ -30,11 +30,11 @@ const config: ForgeConfig = {
         config: rendererConfig,
         entryPoints: [
           {
-            html: "./src/renderProcess/index.html",
-            js: "./src/mainProcess/renderer.tsx",
+            html: "./src/renderer/index.html",
+            js: "./src/main/renderer.tsx",
             name: "main_window",
             preload: {
-              js: "./src/mainProcess/preload.ts",
+              js: "./src/main/preload.ts",
             },
           },
         ],

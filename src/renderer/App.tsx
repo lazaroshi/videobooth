@@ -1,5 +1,4 @@
 import React from "react";
-import "./App.css";
 import { styled } from "styled-components";
 import { Dropdown } from "./components/Dropdown";
 import { VideoMetadata, VideoTypes } from "../types/video";
@@ -41,7 +40,7 @@ export function App() {
         audio: true,
       });
       if (videoRef.current) videoRef.current.srcObject = stream;
-      if (streamRef.current) streamRef.current = stream;
+      streamRef.current = stream;
       setLoaded(true);
     } catch (error) {
       console.error("Error accessing webcam:", error);
