@@ -8,6 +8,8 @@ import {
   getVideoURLFromElectron,
   sendVideoToElectron,
 } from "./services/electron";
+import { IoVideocam } from "react-icons/io5";
+import { MdOutlineVideoLibrary, MdVideoLibrary } from "react-icons/md";
 
 export function App() {
   // state variables
@@ -171,30 +173,56 @@ export function App() {
             ))}
         </LibraryView>
         <FlexRowContainer>
-          <div>
-            <button onClick={() => setViewLibrary((prevView) => !prevView)}>
-              view library
-            </button>
-          </div>
-          <div>
+          <FlexColumnContainer>
+            <ViewLibraryButton
+              id="toggle-library-btn"
+              onClick={() => setViewLibrary((prevView) => !prevView)}
+            >
+              {viewLibrary ? (
+                <MdVideoLibrary style={{ height: "24px", width: "24px" }} />
+              ) : (
+                <MdOutlineVideoLibrary
+                  style={{ height: "24px", width: "24px" }}
+                />
+              )}
+            </ViewLibraryButton>
+            <ButtonLabel htmlFor="toggle-library-btn">
+              {viewLibrary ? "Hide" : "Show"} Library
+            </ButtonLabel>
+          </FlexColumnContainer>
+          <FlexColumnContainer>
             <RecordButton
               style={isRecording ? { backgroundColor: "red" } : {}}
               onClick={handleToggleRecording}
             >
-              Rec
+              <IoVideocam style={{ height: "24px", width: "24px" }} />
             </RecordButton>
-          </div>
-          <div>
+          </FlexColumnContainer>
+          <FlexColumnContainer>
             <Dropdown
               options={["webm", "mp4", "mkv"]}
               onSelect={handlePreferredFormat}
             />
-          </div>
+            <ButtonLabel htmlFor="toggle-rec-btn">Select Filetype</ButtonLabel>
+          </FlexColumnContainer>
         </FlexRowContainer>
       </ControlPanel>
     </AppWrapper>
   );
 }
+
+const ViewLibraryButton = styled.button`
+  border: none;
+  background-color: transparent;
+`;
+
+const ButtonLabel = styled.label`
+  font-family: Ariel, sans-serif;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: capitalize;
+`;
+
 const LibraryView = styled.div<{ $isVisible: boolean }>`
   position: absolute;
   bottom: 100%;
@@ -202,8 +230,8 @@ const LibraryView = styled.div<{ $isVisible: boolean }>`
   width: 100%;
   background-color: darkgray;
   display: flex;
-  gap: 4px;
-  padding: 8px;
+  gap: 8px;
+  padding: 4px;
   overflow: auto;
   transform: ${({ $isVisible }) => ($isVisible ? "scaleY(1)" : "scaleY(0)")};
   transform-origin: bottom;
@@ -214,6 +242,10 @@ const RecordButton = styled.button`
   height: 70px;
   width: 70px;
   border-radius: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid darkgray;
 `;
 
 const AppWrapper = styled.div`
@@ -240,6 +272,15 @@ const FlexRowContainer = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-around;
+`;
+
+const FlexColumnContainer = styled.div`
+  height: 100%;
+  display: flex;
+  flex-flow: column nowrap;
+  align-content: space-around;
+  justify-content: center;
+  padding: 0.5rem;
 `;
 
 const ControlPanel = styled.footer`

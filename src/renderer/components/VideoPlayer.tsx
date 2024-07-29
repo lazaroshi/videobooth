@@ -42,9 +42,16 @@ export function VideoPlayer({ url, videoType, exitPlayback }: PlayerProps) {
 
 const ExitPlaybackButton = styled.button`
   position: absolute;
+  border: none;
+  border-radius: 100%;
+  background-color: black;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   margin: 1rem;
   top: 0px;
   right: 0px;
-  height: 20px;
-  width: 20px;
+  height: 32px;
+  width: 32px;
 `;

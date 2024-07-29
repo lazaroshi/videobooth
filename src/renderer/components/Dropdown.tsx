@@ -1,4 +1,5 @@
 import React from "react";
+import styled from "styled-components";
 
 type DropdownProps = {
   options: string[];
@@ -17,12 +18,21 @@ export function Dropdown({ options, onSelect }: DropdownProps) {
   };
 
   return (
-    <select value={selectedOption} onChange={handleChange}>
+    <StyledSelect value={selectedOption} onChange={handleChange}>
       {options.map((option, index) => (
         <option key={index} value={option}>
           {option}
         </option>
       ))}
-    </select>
+    </StyledSelect>
   );
 }
+
+const StyledSelect = styled.select`
+  background-color: black;
+  border: none;
+  font-weight: bold;
+  color: white;
+  border-radius: 5px;
+  padding: 8px;
+`;
