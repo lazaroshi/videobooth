@@ -12,6 +12,7 @@
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "jsx": "react-jsx",
+    "strictNullChecks": true,
     "paths": {
       "*": ["node_modules/*"]
     }
